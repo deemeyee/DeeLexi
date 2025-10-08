@@ -1,0 +1,459 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Magic Quest — Sentence Builder (Full)</title>
+<style>
+  :root{
+    --bg:#071022; --panel:#0f1a2b; --accent:#9b6bff; --gold:#ffd166; --glass: rgba(255,255,255,0.04);
+    --ok:#40d27f; --wrong:#ff6b6b; --text:#e9f0ff;
+  }
+  html,body{height:100%;margin:0;font-family:Inter,system-ui,Segoe UI,Roboto,Arial;color:var(--text);background:
+    radial-gradient(700px 360px at 12% 8%, rgba(155,107,255,0.06), transparent),
+    linear-gradient(180deg,#041021 0%, #071022 40%, #021018 100%);
+  }
+  .app{max-width:1100px;margin:18px auto;padding:18px;box-sizing:border-box;}
+  header{display:flex;align-items:center;gap:12px;margin-bottom:14px;}
+  .logo{width:64px;height:64px;border-radius:12px;background:linear-gradient(135deg,var(--accent),#6be0ff);display:flex;align-items:center;justify-content:center;font-weight:800;color:#071124;font-size:20px;box-shadow:0 8px 24px rgba(15,22,43,0.6)}
+  h1{margin:0;font-size:20px}
+  p.lead{margin:0;color:rgba(233,240,255,0.78)}
+  .layout{display:grid;grid-template-columns:1fr 340px;gap:16px}
+  .card{background:linear-gradient(180deg,rgba(255,255,255,0.02),var(--glass));border-radius:12px;padding:14px;box-shadow:0 6px 20px rgba(2,8,23,0.6);min-height:360px}
+  .scene{min-height:260px;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;gap:12px}
+  .sentence-area{min-height:72px;padding:12px;border-radius:10px;background:rgba(0,0,0,0.18);width:100%;display:flex;align-items:center;flex-wrap:wrap;gap:10px}
+  .word{padding:8px 12px;border-radius:8px;background:linear-gradient(180deg,#122339,#0e2740);cursor:grab;user-select:none;border:1px solid rgba(255,255,255,0.04)}
+  .word.dragging{opacity:0.6;transform:scale(1.02)}
+  .bank{display:flex;flex-wrap:wrap;gap:10px;padding:10px;background:transparent;border-radius:8px}
+  .controls{display:flex;gap:8px;align-items:center}
+  button.btn{background:linear-gradient(180deg,var(--accent),#6be0ff);border:none;padding:10px 14px;border-radius:10px;color:#071124;font-weight:800;cursor:pointer;box-shadow:0 8px 18px rgba(107,224,255,0.06)}
+  button.ghost{background:transparent;border:1px solid rgba(255,255,255,0.06);color:var(--text);padding:8px 12px;border-radius:8px}
+  .hint{background:linear-gradient(90deg,#ffd166,#ffb86b);color:#071124;padding:6px 10px;border-radius:8px;font-weight:700}
+  .feedback{height:46px;display:flex;align-items:center;gap:8px}
+  .inventory{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+  .item{background:rgba(255,255,255,0.04);padding:6px 10px;border-radius:10px;font-size:13px;display:flex;align-items:center;gap:8px}
+  .map{display:flex;gap:8px;align-items:center;margin-top:8px}
+  .map .dot{width:22px;height:22px;border-radius:50%;background:rgba(255,255,255,0.06);display:flex;align-items:center;justify-content:center;font-size:12px}
+  .dot.done{background:linear-gradient(90deg,var(--gold),#ffb86b);color:#071124;font-weight:800}
+  .message{padding:10px;border-radius:8px;background:rgba(255,255,255,0.02);border:1px dashed rgba(255,255,255,0.03)}
+  .badge-popup{position:fixed;left:50%;top:20%;transform:translateX(-50%);background:linear-gradient(180deg,#fff,#fff8ec);color:#111;padding:12px;border-radius:12px;box-shadow:0 18px 60px rgba(0,0,0,0.45);z-index:9999;display:flex;align-items:center;gap:12px}
+  .badge-img{width:72px;height:72px;border-radius:12px;flex:0 0 72px}
+  .shake{animation:shake 0.42s}
+  @keyframes shake{0%{transform:translateX(0)}25%{transform:translateX(-6px)}50%{transform:translateX(6px)}75%{transform:translateX(-4px)}100%{transform:translateX(0)}}
+  .fadeout{animation:fadeout 0.9s forwards}
+  @keyframes fadeout{to{opacity:0;transform:scale(0.85)}}
+  .dragon{width:160px;height:100px;border-radius:12px;background:linear-gradient(180deg,#40234d,#1b0b26);position:relative;box-shadow:0 12px 40px rgba(0,0,0,0.6)}
+  .dragon::after{content:"";position:absolute;right:-14px;top:8px;width:22px;height:22px;background:linear-gradient(90deg,#ff6b6b,#ffb86b);border-radius:50%;filter:blur(6px)}
+  footer{margin-top:12px;color:rgba(233,240,255,0.6);font-size:13px;text-align:center}
+  .small{font-size:13px;color:rgba(255,255,255,0.7)}
+  .cert-btn{background:linear-gradient(180deg,#ffd166,#ffb86b);border:none;color:#071124;padding:8px 10px;border-radius:8px;font-weight:800;cursor:pointer}
+  @media(max-width:980px){.layout{grid-template-columns:1fr}.card{min-height:200px}}
+  /* Parchment certificate styles used when opening print window (kept here for reference) */
+</style>
+</head>
+<body>
+<div class="app" id="appRoot">
+  <header>
+    <div class="logo">MQ</div>
+    <div>
+      <h1>Magic Quest — Sentence Builder</h1>
+      <p class="lead">Fix scrambled sentences to restore the Magic Kingdom. Immediate feedback, badges & certificates!</p>
+    </div>
+  </header>
+
+  <div class="layout">
+    <!-- main area -->
+    <div class="card" id="mainCard">
+      <div id="scene" class="scene"></div>
+
+      <div style="margin-top:12px;display:flex;justify-content:space-between;align-items:center;">
+        <div class="controls">
+          <button id="hintBtn" class="ghost">Hint</button>
+          <button id="checkBtn" class="btn">Check</button>
+          <button id="skipBtn" class="ghost">Skip</button>
+        </div>
+        <div class="feedback" id="feedback"></div>
+      </div>
+
+      <div style="margin-top:12px;display:flex;justify-content:space-between;align-items:center;">
+        <div class="inventory" id="inventory"></div>
+        <div class="small">Attempts on current sentence: <span id="att">0</span></div>
+      </div>
+    </div>
+
+    <!-- sidebar -->
+    <aside class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+        <strong>Progress</strong>
+        <div id="score">Score: 0</div>
+      </div>
+
+      <div class="map" id="map"></div>
+      <div style="margin-top:12px">
+        <div class="message" id="message">Welcome, young wizard! Click <strong>Start</strong> to begin the quest.</div>
+      </div>
+
+      <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap">
+        <button id="startBtn" class="btn">Start Quest</button>
+        <button id="restartBtn" class="ghost">Restart</button>
+        <button id="certificateBtn" class="ghost">Final Certificate</button>
+      </div>
+
+      <div style="margin-top:12px">
+        <div class="small">Hosting tips: host on GitHub Pages / Netlify and use Genially's Embed (iframe).</div>
+      </div>
+    </aside>
+  </div>
+
+  <footer>Made with ✨ for ESL learners • All-in-one file — host to embed in Genially Free.</footer>
+</div>
+
+<!-- Badge SVGs (cartoon style) as data URIs -->
+<script>
+const BADGE_SVGS = {
+  "Gate Key": `data:image/svg+xml;utf8,${encodeURIComponent(`<svg xmlns='http://www.w3.org/2000/svg' width='200' height='200' viewBox='0 0 200 200'><defs><filter id='g' x='-20%' y='-20%' width='140%' height='140%'><feDropShadow dx='0' dy='6' stdDeviation='8' flood-color='#000' flood-opacity='0.25'/></filter></defs><rect rx='20' width='200' height='200' fill='%23fff7e6'/><circle cx='100' cy='70' r='42' fill='%23ffd166' stroke='%23ffb86b' stroke-width='4' /><g transform='translate(60,50)'><rect x='28' y='36' width='10' height='30' rx='3' fill='%235a3e1f'/><rect x='18' y='58' width='30' height='10' rx='2' fill='%235a3e1f'/><circle cx='15' cy='50' r='6' fill='%232d1b0d'/></g><text x='100' y='165' font-family='Verdana' font-size='18' text-anchor='middle' fill='%235a3e1f'>Gate Key</text></svg>`)}`,
+  "Phoenix Feather": `data:image/svg+xml;utf8,${encodeURIComponent(`<svg xmlns='http://www.w3.org/2000/svg' width='200' height='200' viewBox='0 0 200 200'><rect rx='20' width='200' height='200' fill='%23fff8f0'/><path d='M50 120 C70 40, 130 40,150 120 C140 110,120 100,100 110 C80 120,60 120,50 120 Z' fill='%23ff8a00' stroke='%23ffb86b' stroke-width='3'/><text x='100' y='170' font-family='Verdana' font-size='16' text-anchor='middle' fill='%235a3e1f'>Feather</text></svg>`)}`,
+  "Spell Scroll": `data:image/svg+xml;utf8,${encodeURIComponent(`<svg xmlns='http://www.w3.org/2000/svg' width='200' height='200' viewBox='0 0 200 200'><rect rx='20' width='200' height='200' fill='%23f6f8ff'/><rect x='36' y='28' width='128' height='144' rx='12' fill='%23fff1d6' stroke='%23ffd166' stroke-width='3'/><path d='M60 60 H140' stroke='%238b5d2b' stroke-width='3'/><path d='M60 82 H140' stroke='%238b5d2b' stroke-width='3'/><text x='100' y='170' font-family='Verdana' font-size='16' text-anchor='middle' fill='%235a3e1f'>Scroll</text></svg>`)}`,
+  "Treasure Key": `data:image/svg+xml;utf8,${encodeURIComponent(`<svg xmlns='http://www.w3.org/2000/svg' width='200' height='200' viewBox='0 0 200 200'><rect rx='20' width='200' height='200' fill='%23eefaf6'/><g transform='translate(50,50)'><circle cx='40' cy='40' r='22' fill='%23ffd166' stroke='%23ffb86b' stroke-width='3'/><rect x='58' y='36' width='44' height='12' rx='6' fill='%23ffd166'/><rect x='90' y='44' width='10' height='10' fill='%23ffd166' rx='2'/></g><text x='100' y='170' font-family='Verdana' font-size='16' text-anchor='middle' fill='%235a3e1f'>Treasure</text></svg>`)}` 
+};
+</script>
+
+<!-- Main game logic -->
+<script>
+/* ========== Game Data (4 levels × 5 sentences each) ========== */
+const levels = [
+  { id:1, name:"Gatekeeper's Riddle", items:["Gate Key"], sentences:[
+      {j:"the cat is black", a:"The cat is black."},
+      {j:"she likes apples", a:"She likes apples."},
+      {j:"i am happy", a:"I am happy."},
+      {j:"he runs fast", a:"He runs fast."},
+      {j:"the sun is hot", a:"The sun is hot."}
+  ]},
+  { id:2, name:"Potion Room", items:["Phoenix Feather"], sentences:[
+      {j:"the dog is very big", a:"The dog is very big."},
+      {j:"anna likes ice cream", a:"Anna likes ice cream."},
+      {j:"my father reads a book", a:"My father reads a book."},
+      {j:"they play football at school", a:"They play football at school."},
+      {j:"the house is very small", a:"The house is very small."}
+  ]},
+  { id:3, name:"Wizard's Library", items:["Spell Scroll"], sentences:[
+      {j:"the dog is under the table", a:"The dog is under the table."},
+      {j:"the birds are in the tree", a:"The birds are in the tree."},
+      {j:"my mother is cooking in the kitchen", a:"My mother is cooking in the kitchen."},
+      {j:"the car is in front of the house", a:"The car is in front of the house."},
+      {j:"she is wearing a red dress", a:"She is wearing a red dress."}
+  ]},
+  { id:4, name:"Dragon's Lair", items:["Treasure Key"], sentences:[
+      {j:"the children are playing football in the park", a:"The children are playing football in the park."},
+      {j:"i like pizza but i don't like burgers", a:"I like pizza, but I don't like burgers."},
+      {j:"she is reading a book because it is interesting", a:"She is reading a book because it is interesting."},
+      {j:"the teacher is writing on the whiteboard", a:"The teacher is writing on the whiteboard."},
+      {j:"we are going to the zoo tomorrow", a:"We are going to the zoo tomorrow."}
+  ]}
+];
+
+let state = { levelIndex:-1, sentenceIndex:0, score:0, inventory:[], attempts:0, badges:{} };
+
+const sceneEl = document.getElementById('scene');
+const feedbackEl = document.getElementById('feedback');
+const inventoryEl = document.getElementById('inventory');
+const mapEl = document.getElementById('map');
+const messageEl = document.getElementById('message');
+const scoreEl = document.getElementById('score');
+const startBtn = document.getElementById('startBtn');
+const restartBtn = document.getElementById('restartBtn');
+const checkBtn = document.getElementById('checkBtn');
+const hintBtn = document.getElementById('hintBtn');
+const skipBtn = document.getElementById('skipBtn');
+const certificateBtn = document.getElementById('certificateBtn');
+const attEl = document.getElementById('att');
+
+startBtn.addEventListener('click', startQuest);
+restartBtn.addEventListener('click', ()=>{ if(confirm('Restart whole quest?')) resetGame(); });
+checkBtn.addEventListener('click', checkSentence);
+hintBtn.addEventListener('click', giveHint);
+skipBtn.addEventListener('click', skipSentence);
+certificateBtn.addEventListener('click', ()=> openFinalCertificate(false));
+
+/* ---------- Audio (Fantasy chime synthesized with WebAudio) ---------- */
+const AudioEngine = (function(){
+  const ctx = new (window.AudioContext || window.webkitAudioContext)();
+  function chime(){
+    const now = ctx.currentTime;
+    const o = ctx.createOscillator();
+    const g = ctx.createGain();
+    o.type = 'sine';
+    o.frequency.setValueAtTime(880, now);
+    o.frequency.exponentialRampToValueAtTime(660, now + 0.18);
+    g.gain.setValueAtTime(0.0001, now);
+    g.gain.exponentialRampToValueAtTime(0.25, now+0.02);
+    g.gain.exponentialRampToValueAtTime(0.001, now+1.2);
+    o.connect(g); g.connect(ctx.destination);
+    o.start(now); o.stop(now+1.2);
+  }
+  function buzz(){
+    const now = ctx.currentTime;
+    const o = ctx.createOscillator();
+    const g = ctx.createGain();
+    o.type = 'square';
+    o.frequency.setValueAtTime(220, now);
+    g.gain.setValueAtTime(0.0001, now);
+    g.gain.exponentialRampToValueAtTime(0.18, now+0.02);
+    g.gain.exponentialRampToValueAtTime(0.0001, now+0.8);
+    o.connect(g); g.connect(ctx.destination);
+    o.start(now); o.stop(now+0.8);
+  }
+  function sparkle(){
+    const now = ctx.currentTime;
+    for(let i=0;i<3;i++){
+      const o = ctx.createOscillator(); const g = ctx.createGain();
+      o.type='triangle';
+      o.frequency.setValueAtTime(1200 - i*150, now + i*0.03);
+      g.gain.setValueAtTime(0.0001, now);
+      g.gain.exponentialRampToValueAtTime(0.12, now+0.02+i*0.03);
+      g.gain.exponentialRampToValueAtTime(0.0001, now+0.6+i*0.03);
+      o.connect(g); g.connect(ctx.destination);
+      o.start(now + i*0.03); o.stop(now + 0.6 + i*0.03);
+    }
+  }
+  return { chime, buzz, sparkle };
+})();
+
+/* ---------- Utility helpers ---------- */
+function scramble(arr){ const a = arr.slice(); for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]];} return a; }
+function normalize(s){ return s.replace(/[.,!?]+/g,'').replace(/\s+/g,' ').trim().toLowerCase(); }
+function escapeHtml(s){ return (s+'').replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+/* ---------- UI update functions ---------- */
+function updateMap(){
+  mapEl.innerHTML=''; for(let i=0;i<levels.length;i++){ const dot = document.createElement('div'); dot.className='dot'+(i<state.levelIndex ? ' done':''); dot.title = levels[i].name; dot.textContent = i<state.levelIndex ? '✓' : i+1; mapEl.appendChild(dot); }
+}
+function updateScore(){ scoreEl.textContent = 'Score: ' + state.score; }
+function renderInventory(){ inventoryEl.innerHTML=''; state.inventory.forEach(it=>{ const el = document.createElement('div'); el.className='item'; const img = document.createElement('img'); img.src = BADGE_SVGS[it] || ''; img.style.width='36px'; img.style.height='36px'; img.style.borderRadius='6px'; el.appendChild(img); const t = document.createElement('div'); t.textContent = it; el.appendChild(t); inventoryEl.appendChild(el); }); }
+
+function feedback(text, type){
+  feedbackEl.innerHTML = ''; if(!text) return;
+  const s = document.createElement('div'); s.textContent = text;
+  if(type==='ok') { s.style.color='var(--ok)'; AudioEngine.chime(); }
+  if(type==='wrong'){ s.style.color='var(--wrong)'; AudioEngine.buzz(); }
+  if(type==='hint'){ s.style.color='var(--gold)'; AudioEngine.sparkle(); }
+  feedbackEl.appendChild(s);
+  setTimeout(()=>{ if(feedbackEl.contains(s)) feedbackEl.removeChild(s); }, 5500);
+}
+
+function message(txt){ messageEl.innerHTML = txt; }
+
+/* ---------- Game flow ---------- */
+function resetGame(){
+  state = { levelIndex:-1, sentenceIndex:0, score:0, inventory:[], attempts:0, badges:{} };
+  feedback('','');
+  inventoryEl.innerHTML=''; updateScore(); updateMap();
+  sceneEl.innerHTML = `<div style="text-align:center;padding:30px"><h3>Magic Quest</h3><p class="small">Click Start to begin your adventure and restore the Magic Kingdom.</p></div>`;
+  message('Ready to try again? Click Start Quest.');
+  attEl.textContent = '0';
+}
+resetGame();
+
+function startQuest(){
+  if(state.levelIndex === -1){ state.levelIndex=0; state.sentenceIndex=0; updateMap(); loadScene(); message('The evil wizard scrambled the kingdom. Fix sentences to collect magic items!'); }
+}
+
+function loadScene(){
+  feedback('',''); attEl.textContent = '0';
+  const lvl = levels[state.levelIndex]; const sObj = lvl.sentences[state.sentenceIndex];
+  sceneEl.innerHTML = '';
+  const title = document.createElement('div'); title.style.width='100%'; title.innerHTML = `<h2 style="margin:0">${lvl.name}</h2><small>Stage ${state.levelIndex+1} • Sentence ${state.sentenceIndex+1} of ${lvl.sentences.length}</small>`; sceneEl.appendChild(title);
+
+  // visual
+  const visual = document.createElement('div'); visual.style.width='100%'; visual.style.display='flex'; visual.style.justifyContent='center'; visual.style.marginTop='6px';
+  if(state.levelIndex < levels.length-1){
+    const orb = document.createElement('div'); orb.style.width='260px'; orb.style.height='120px'; orb.style.borderRadius='12px'; orb.style.background='linear-gradient(135deg,#0f2740, #11173a)'; orb.style.display='flex'; orb.style.alignItems='center'; orb.style.justifyContent='center';
+    orb.innerHTML = `<div style="text-align:center;color:rgba(255,255,255,0.9)"><strong style="font-size:18px">${lvl.name}</strong><div style="opacity:0.85;margin-top:6px">${lvl.items.join(', ')}</div></div>`;
+    visual.appendChild(orb);
+  } else {
+    const dragon = document.createElement('div'); dragon.className='dragon'; visual.appendChild(dragon);
+  }
+  sceneEl.appendChild(visual);
+
+  // sentence area (drop target)
+  const sentenceWrap = document.createElement('div'); sentenceWrap.className='sentence-area'; sentenceWrap.id='dropZone'; sentenceWrap.setAttribute('ondragover','event.preventDefault()'); sentenceWrap.addEventListener('drop', handleDropOnSentence);
+  sceneEl.appendChild(sentenceWrap);
+
+  // word bank
+  const bank = document.createElement('div'); bank.className='bank';
+  const words = sObj.j.split(/\s+/).map(w=>w.trim()).filter(Boolean);
+  scramble(words).forEach((w,i)=>{
+    const wEl = document.createElement('div'); wEl.className='word'; wEl.textContent = decodeToken(w); wEl.draggable = true; wEl.id = 'w'+i+'_'+Date.now(); wEl.addEventListener('dragstart', handleDragStart); wEl.addEventListener('dragend', handleDragEnd); bank.appendChild(wEl);
+  });
+  sceneEl.appendChild(bank);
+
+  // hint/info row
+  const hintRow = document.createElement('div'); hintRow.style.width='100%'; hintRow.style.display='flex'; hintRow.style.justifyContent='space-between'; hintRow.style.marginTop='8px';
+  hintRow.innerHTML = `<div class="message">Drag words into the sentence area in the correct order. Click a placed word to remove it back to the bank.</div><div style="display:flex;gap:8px"><button class="cert-btn" id="levelCertBtn">Level Certificate</button></div>`;
+  sceneEl.appendChild(hintRow);
+  document.getElementById('levelCertBtn').addEventListener('click', ()=> openLevelCertificate(true));
+
+  // removing placed words on click
+  sentenceWrap.addEventListener('click', e=>{
+    if(e.target.classList.contains('word')){ bank.appendChild(e.target); }
+  });
+
+  state.attempts = 0;
+}
+
+/* Drag handlers */
+function handleDragStart(e){ e.dataTransfer.setData('text/plain', e.target.id); setTimeout(()=>e.target.classList.add('dragging'),10); }
+function handleDragEnd(e){ e.target.classList.remove('dragging'); }
+function handleDropOnSentence(e){ e.preventDefault(); const id = e.dataTransfer.getData('text/plain'); const dragged = document.getElementById(id); if(!dragged) return; e.currentTarget.appendChild(dragged); }
+
+/* Compose current answer */
+function getComposed(){
+  const drop = document.getElementById('dropZone'); if(!drop) return '';
+  const words = Array.from(drop.querySelectorAll('.word')).map(n=>n.textContent.trim());
+  return words.join(' ');
+}
+
+/* Check logic */
+function checkSentence(){
+  const lvl = levels[state.levelIndex]; const sObj = lvl.sentences[state.sentenceIndex];
+  const comp = getComposed().trim();
+  if(!comp){ shakeMain(); feedback('Place the words to form a sentence.', 'wrong'); return; }
+  state.attempts++; attEl.textContent = state.attempts;
+  const correct = normalize(sObj.a); const user = normalize(comp);
+  if(user === correct){ onCorrect(); } else {
+    if(state.attempts >= 2){ feedback('Not quite — showing correct sentence to help you learn.', 'wrong'); revealCorrect(); } else { shakeMain(); feedback('Try again — check word order and capitals.', 'wrong'); }
+  }
+}
+
+/* On correct */
+function onCorrect(){
+  const lvl = levels[state.levelIndex]; const item = lvl.items[0];
+  state.score += 12; updateScore(); feedback(`Correct! You earned: ${item}`, 'ok');
+  collectItem(item);
+  // mark badge for level if finish of level's last sentence
+  setTimeout(()=>advance(),900);
+}
+
+/* reveal correct sentence */
+function revealCorrect(){
+  const lvl = levels[state.levelIndex]; const sObj = lvl.sentences[state.sentenceIndex];
+  const drop = document.getElementById('dropZone'); drop.innerHTML = '';
+  sObj.a.replace(/[,.!?]/g,'').split(/\s+/).forEach(w=>{
+    const el = document.createElement('div'); el.className='word'; el.textContent = w; el.draggable=false; drop.appendChild(el);
+  });
+  state.score = Math.max(0, state.score - 2); updateScore();
+  setTimeout(()=>advance(),1400);
+}
+
+/* Advance through sentences & levels */
+function advance(){
+  const lvl = levels[state.levelIndex];
+  state.sentenceIndex++;
+  if(state.sentenceIndex >= lvl.sentences.length){
+    // level complete: award badge & certificate
+    awardBadge(lvl.items[0]);
+    openLevelCertificate(false);
+    state.levelIndex++; state.sentenceIndex = 0; updateMap();
+    if(state.levelIndex >= levels.length){ victory(); return; } else {
+      message(`Level complete! ${lvl.name} cleared. Proceed to ${levels[state.levelIndex].name}.`);
+      setTimeout(()=>loadScene(),900); return;
+    }
+  } else {
+    loadScene();
+  }
+}
+
+/* Award badge (if not awarded) */
+function awardBadge(name){
+  if(!state.badges[name]){
+    state.badges[name] = true;
+    collectItem(name);
+    showBadgePopup(name);
+  }
+}
+
+/* Show an animated badge popup (cartoon-style image) */
+function showBadgePopup(name){
+  const popup = document.createElement('div'); popup.className='badge-popup';
+  const img = document.createElement('img'); img.className='badge-img'; img.src = BADGE_SVGS[name] || '';
+  const txt = document.createElement('div'); txt.innerHTML = `<strong>Badge unlocked!</strong><div style="font-size:14px">${escapeHtml(name)}</div><div style="margin-top:8px"><button id="closeBadge" class="btn">Awesome!</button></div>`;
+  popup.appendChild(img); popup.appendChild(txt); document.body.appendChild(popup);
+  document.getElementById('closeBadge').addEventListener('click', ()=>{ popup.classList.add('fadeout'); setTimeout(()=>document.body.removeChild(popup),700); });
+  // chime
+  AudioEngine.chime();
+}
+
+/* collect item to inventory */
+function collectItem(name){
+  if(!state.inventory.includes(name)){ state.inventory.push(name); renderInventory(); }
+}
+
+/* skip */
+function skipSentence(){ if(!confirm('Skip this sentence? It will count as incorrect.')) return; state.score = Math.max(0, state.score - 3); updateScore(); advance(); }
+
+/* hint: show first & last word, small penalty */
+function giveHint(){ const lvl = levels[state.levelIndex]; const sObj = lvl.sentences[state.sentenceIndex]; const words = sObj.a.replace(/[,.!?]/g,'').split(/\s+/); feedback(`Hint: first word is "${words[0]}", last word is "${words[words.length-1]}"`, 'hint'); state.score = Math.max(0, state.score - 1); updateScore(); }
+
+/* shake animation */
+function shakeMain(){ const card = document.getElementById('mainCard'); card.classList.add('shake'); setTimeout(()=>card.classList.remove('shake'),420); }
+
+/* victory */
+function victory(){
+  sceneEl.innerHTML = ''; const el = document.createElement('div'); el.style.textAlign='center'; el.innerHTML = `<h2>🎉 You restored the Magic Kingdom!</h2><p>All spells are fixed. You collected: ${state.inventory.join(', ')}</p><div style="margin-top:12px"><button id="playAgain" class="btn">Play Again</button> <button id="finalCert" class="cert-btn">Final Certificate</button></div>`; sceneEl.appendChild(el);
+  message('Amazing! You are a Junior Sentence Wizard.');
+  document.getElementById('playAgain').addEventListener('click', ()=>{ resetGame(); startQuest(); });
+  document.getElementById('finalCert').addEventListener('click', ()=> openFinalCertificate(false));
+}
+
+/* ---------- Certificates (per-level and final) ---------- */
+/* Open a printable level certificate: if preview=true show popup with print, else open print window */
+function openLevelCertificate(promptForName=true){
+  const lvl = levels[state.levelIndex >=0 ? state.levelIndex : 0];
+  // if level not yet completed, still allow printing with "Progress" note
+  const completed = state.badges[lvl.items[0]] ? true : false;
+  const name = promptForName ? (prompt('Enter student name for this level certificate:', 'Young Wizard') || 'Young Wizard') : 'Young Wizard';
+  const features = `${escapeHtml(lvl.name)} — ${completed ? 'Completed' : 'In Progress'}. Score: ${state.score}`;
+  const certHtml = makeParchmentCertificateHtml(name, `${lvl.name}`, features, completed ? [lvl.items[0]] : []);
+  const w = window.open('','_blank'); w.document.write(certHtml); w.document.close();
+}
+
+/* Open final certificate */
+function openFinalCertificate(promptForName=true){
+  const allCompleted = levels.every(l=> state.badges[l.items[0]]);
+  const name = promptForName ? (prompt('Enter student name for the final certificate:', 'Young Wizard') || 'Young Wizard') : 'Young Wizard';
+  const features = `Badges: ${state.inventory.join(', ') || '—'} • Score: ${state.score} • ${allCompleted ? 'All levels completed' : 'Partial completion'}`;
+  const certHtml = makeParchmentCertificateHtml(name, `Master of the Magic Kingdom`, features, state.inventory, true);
+  const w = window.open('','_blank'); w.document.write(certHtml); w.document.close();
+}
+
+/* Generate parchment-style certificate HTML (printable) */
+function makeParchmentCertificateHtml(name, title, features, badgesArr=[], isFinal=false){
+  const badgeHtml = (badgesArr && badgesArr.length) ? badgesArr.map(b=>`<img src="${BADGE_SVGS[b]}" style="width:56px;height:56px;margin:6px;border-radius:8px"/>`).join('') : '';
+  const signline = `<div style="margin-top:42px;display:flex;justify-content:space-between;align-items:center"><div style="text-align:left"><div style="font-size:14px;color:#3b3b3b">Date: ${new Date().toLocaleDateString()}</div></div><div style="text-align:right"><div style="font-size:16px;color:#3b3b3b">Teacher's signature</div><div style="margin-top:6px;border-top:1px solid rgba(0,0,0,0.25);width:180px"></div></div></div>`;
+  const html = `<!doctype html><html><head><meta charset="utf-8"><title>Certificate</title>
+  <style>
+    body{margin:0;padding:0;font-family:Georgia,serif;background:#f2efe6}
+    .page{width:100%;display:flex;align-items:center;justify-content:center;padding:36px 0}
+    .cert{width:820px;padding:36px;border-radius:12px;background:linear-gradient(180deg,#fffdf5,#fff7ea);box-shadow:0 20px 60px rgba(0,0,0,0.12);border:6px solid #d4b36a;position:relative}
+    .parch{background-image:radial-gradient(circle at 20% 20%, rgba(0,0,0,0.02), transparent), linear-gradient(180deg, rgba(255,255,255,0.0), rgba(0,0,0,0.01));padding:28px;border-radius:8px}
+    h1{margin:0;font-size:34px;color:#6b21a8;text-align:center}
+    h2{margin:10px 0 6px 0;text-align:center;font-size:22px;color:#333}
+    .meta{margin-top:18px;text-align:center;color:#333;font-size:16px}
+    .badges{display:flex;justify-content:center;gap:8px;margin-top:12px}
+    .footer{margin-top:22px;color:#555;font-size:13px;text-align:left}
+    @media print{ body{background:white} .cert{box-shadow:none} }
+  </style>
+  </head><body><div class="page"><div class="cert"><div class="parch"><h1>Certificate of Magic</h1><h2>${escapeHtml(title)}</h2><p style="text-align:center;margin-top:8px;font-size:18px;color:#444">This certifies that</p><h2 style="font-size:28px;margin-top:4px">${escapeHtml(name)}</h2><p class="meta">${escapeHtml(features)}</p><div class="badges">${badgeHtml}</div>${signline}<div class="footer">Magic Quest — Sentence Builder</div></div></div></div><script>setTimeout(()=>window.print(),200);</script></body></html>`;
+  return html;
+}
+
+/* ---------- Helpers & init ---------- */
+updateMap(); updateScore();
+
+/* Auto-start tip: if user clicks Start, we already wire that up above. */
+
+function decodeToken(t){ return t.replace(/_/g,' ').replace(/\\'/g,"'"); }
+</script>
+
+</body>
+</html>
